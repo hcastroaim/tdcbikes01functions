@@ -1,0 +1,19 @@
+{
+  "bindings": [
+    {
+      "name": "myQueueItem",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "events",
+      "connection": "Queue-ConnectionString"
+    },
+    {
+      "type": "table",
+      "name": "outputTableRow",
+      "tableName": "statuslogs",
+      "connection": "Queue-ConnectionString",
+      "direction": "out"
+    }
+  ],
+  "disabled": false
+}

@@ -1,0 +1,27 @@
+{
+  "bindings": [
+    {
+      "authLevel": "function",
+      "name": "req",
+      "type": "httpTrigger",
+      "direction": "in",
+      "methods": [
+        "post"
+      ]
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    },
+    {
+      "type": "table",
+      "name": "tableBinding",
+      "tableName": "statuslogs",
+      "connection": "Queue-ConnectionString",
+      "direction": "in",
+      "take": 50
+    }
+  ],
+  "disabled": false
+}

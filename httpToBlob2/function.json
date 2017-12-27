@@ -1,0 +1,40 @@
+{
+  "bindings": [
+    {
+      "authLevel": "function",
+      "name": "req",
+      "type": "httpTrigger",
+      "direction": "in",
+      "methods": [
+        "post"
+      ]
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    },
+    {
+      "type": "blob",
+      "name": "outputBlob",
+      "path": "csvpending/{rand-guid}.csv",
+      "connection": "Queue-ConnectionString",
+      "direction": "out"
+    },
+    {
+      "type": "table",
+      "name": "outputTableRow",
+      "tableName": "statuslogs",
+      "connection": "Queue-ConnectionString",
+      "direction": "out"
+    },
+    {
+      "type": "queue",
+      "name": "outputQueueAuditLog",
+      "queueName": "auditlogqueue",
+      "connection": "Queue-ConnectionString",
+      "direction": "out"
+    }
+  ],
+  "disabled": false
+}

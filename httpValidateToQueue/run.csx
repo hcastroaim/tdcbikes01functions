@@ -39,11 +39,8 @@ public static HttpResponseMessage Run(HttpRequestMessage req, TraceWriter log, o
         outputTableRow.Add(
             new LogInfo {RowKey = oMsg.msgId, success = null, notes=""}
         );
-
-
         return req.CreateResponse(HttpStatusCode.OK, new ResponseMsg {msgId = oMsg.msgId});
     }
-    
     catch(Exception ex) 
     {
         outputQueueItem = null;

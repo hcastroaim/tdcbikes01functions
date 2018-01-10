@@ -2,44 +2,54 @@
 #r "System.Data"
 #r "Newtonsoft.Json"
 #r "Microsoft.WindowsAzure.Storage"
- 
+
 using System;
 using System.Configuration;
 using System.Data.SqlClient;
+using System.Data;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Microsoft.WindowsAzure.Storage; 
+using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 
 public static async Task Run(string myQueueItem, ICollector<LogInfo> outputTableRow, TraceWriter log)
 {
     log.Info($"Queue trigger function initiated");
-    
 
-        Message oMsg = JsonConvert.DeserializeObject<Message>(myQueueItem);
-        
-        var connStr = ConfigurationManager.ConnectionStrings["SQLConnectionString"].ConnectionString;
 
-        using (SqlConnection conn = new SqlConnection(connStr))
+    Message oMsg = JsonConvert.DeserializeObject<Message>(myQueueItem);
+    var connStr = ConfigurationManager.ConnectionStrings["SQLConnectionString"].ConnectionString;
+
+    using (SqlConnection conn = new SqlConnection(connStr))
+    {
+        conn.Open();
+        var text = "SP-QueueToSql";
+        using (SqlCommand cmd = new SqlCommand(text, conn))
         {
-            conn.Open();
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@bikeid", oMsg.bike_id);
+            cmd.Parameters.AddWithValue("@time", oMsg.time);
+            cmd.Parameters.AddWithValue("@longitude", oMsg.longitude);
+            cmd.Parameters.AddWithValue("@latitude", oMsg.latitude);
+            cmd.Parameters.AddWithValue("@event_type", oMsg.event_type);
+            cmd.Parameters.AddWithValue("@riderId", oMsg.rider_info.riderId);
+            cmd.Parameters.AddWithValue("@gender", oMsg.rider_info.gender);
+            cmd.Parameters.AddWithValue("@age", oMsg.rider_info.age);
+            cmd.Parameters.AddWithValue("@resident", oMsg.rider_info.resident);
+            cmd.Parameters.AddWithValue("@msgId", oMsg.msgId);
 
-            var text = $"INSERT INTO Events (bike_id, [time], [location], event_type, rider_id,rider_gender, rider_age, rider_resident, message_id) VALUES ('{oMsg.bike_id}', '{oMsg.time}', geography::STGeomFromText('POINT({oMsg.longitude} {oMsg.latitude})', 4326), '{oMsg.event_type}', '{oMsg.rider_info.riderId}', '{oMsg.rider_info.gender}', '{oMsg.rider_info.age}', '{oMsg.rider_info.resident}','{oMsg.msgId}')";
-
-            using (SqlCommand cmd = new SqlCommand(text, conn))
-            {
-                var rows = await cmd.ExecuteNonQueryAsync();
-            }
+            var rows = await cmd.ExecuteNonQueryAsync();
         }
+    }
 
-        //log.Info(oMsg.ToString());
-        var x = sendLog(oMsg.msgId, true, ""); 
-        log.Info(x);
+    var x = sendLog(oMsg.msgId, true, "");
+    log.Info(x);
 
 }
 
-public static string sendLog (string msgId, bool success, string notes) {
-    
+public static string sendLog(string msgId, bool success, string notes)
+{
+
     string returnmessage = "";
     //Initialize Connection
     CloudStorageAccount storageAccount = CloudStorageAccount.Parse(System.Configuration.ConfigurationManager.AppSettings["Queue-ConnectionString"]);
@@ -100,13 +110,14 @@ public class LogInfo
 }
 
 
-public class LogEntity : TableEntity {
+public class LogEntity : TableEntity
+{
     public LogEntity(string msgId)
     {
         this.PartitionKey = "Events";
         this.RowKey = msgId;
     }
-    public LogEntity() {}
+    public LogEntity() { }
     public bool? success { get; set; }
-    public string notes { get; set; } 
+    public string notes { get; set; }
 }

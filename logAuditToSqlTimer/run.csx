@@ -10,6 +10,7 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Queue;
 using System.Configuration;
 using System.Data.SqlClient;
+using System.Data;
 using Newtonsoft.Json;
 
 public static void Run(TimerInfo myTimer, TraceWriter log)
@@ -23,26 +24,26 @@ public static void Run(TimerInfo myTimer, TraceWriter log)
 
     int queueLength;
     queueLength = GetQueueLength(queue);
-
+ 
     while (queueLength > 0)
     {
-        queueLength = GetQueueWriteSql(queue).GetAwaiter().GetResult();            
+        queueLength = GetQueueWriteSql(queue, log).GetAwaiter().GetResult();            
     }
 }
 
-public static async Task<int> GetQueueWriteSql(CloudQueue queue)
+public static async Task<int> GetQueueWriteSql(CloudQueue queue, TraceWriter logger)
 {
     var queueMessages = queue.GetMessages(30, TimeSpan.FromSeconds(30));
 
     List<AuditLogMessage> msgs = new List<AuditLogMessage>();
-    
+
     //Get 25 messages at a time
     foreach (CloudQueueMessage message in queueMessages)
     {
         msgs.Add(JsonConvert.DeserializeObject<AuditLogMessage>(message.AsString));
     }
 
-    int rows = await WriteSQL(msgs);
+    int rows = await WriteSQL(msgs, logger);
 
     if (rows > 0)
     {
@@ -78,7 +79,7 @@ public static int GetQueueLength(CloudQueue queue)
     
 }
 
-public static async Task<int> WriteSQL(List<AuditLogMessage> msgs)
+public static async Task<int> WriteSQL(List<AuditLogMessage> msgs, TraceWriter logger)
 {
     var json = JsonConvert.SerializeObject(msgs);
     var connStr = ConfigurationManager.ConnectionStrings["SQLConnectionString"].ConnectionString;
@@ -88,16 +89,19 @@ public static async Task<int> WriteSQL(List<AuditLogMessage> msgs)
     {
         conn.Open();
 
-        var text = $"DECLARE @json nvarchar(max) = '{json}'; INSERT INTO AuditTable SELECT * FROM OPENJSON(@json) WITH(email nvarchar(100),api_called nvarchar(20),timeuploaded datetime2(7),msgId uniqueidentifier);";
+        logger.Info(json); 
+
+        var text = "SP-LogAuditToSqlTimer";
 
         using (SqlCommand cmd = new SqlCommand(text, conn))
         {
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@json", json);
             rows = await cmd.ExecuteNonQueryAsync();
         }
         
         conn.Close();
     }
-
     return rows;
 }
 

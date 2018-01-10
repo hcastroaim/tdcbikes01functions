@@ -7,6 +7,7 @@
 using System.Net;
 using System;
 using System.Configuration;
+using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -16,9 +17,8 @@ using CsvHelper;
 
 public static async Task Run(Stream myBlob, string name, TraceWriter log)
 {
-       
     string containerName = "csvpending";
-    string filename = containerName + "/" + name;
+    string filename = containerName  + "/" + name;
     
     log.Info($"C# Blob trigger function processing blob\n Name:{name} \n");
     
@@ -28,23 +28,13 @@ public static async Task Run(Stream myBlob, string name, TraceWriter log)
     {
         conn.Open();
         
-        var text = @"
-        SELECT * FROM OPENROWSET(
-        BULK '"+filename+@"',
-        DATA_SOURCE = 'MyAzureBlobs',
-        SINGLE_CLOB) AS DataFile;
-
-        BULK INSERT EventsLatLongStage
-        FROM '"+filename+@"'
-        WITH (DATA_SOURCE = 'MyAzureBlobs',
-            FIRSTROW = 2,
-            FORMAT = 'CSV');
-        ";
-
+        var text = "SP-BulkInsertFromBlob";
         var text2 = @"EXEC [dbo].[SP-MoveLatLongEvents]";
 
         using (SqlCommand cmd = new SqlCommand(text, conn))
         {
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@filename", filename);
             var stagetablecmd = await cmd.ExecuteNonQueryAsync();
                 log.Info($"## Uploaded to Stage Table");
         }
@@ -67,8 +57,6 @@ public static async Task Run(Stream myBlob, string name, TraceWriter log)
             //msgIds.Add(msgId);
             sendLog(msgId, true, "");
         }
-
-
 }
 
 
